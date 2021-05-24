@@ -1,4 +1,4 @@
-WITH gather_data AS (
+WITH gather_student_data AS (
   SELECT
     "National" AS national,
     site_short,
@@ -24,67 +24,71 @@ WITH gather_data AS (
     college_track_status_c
 ),
 survey_completion AS (
-SELECT site_short,
-SUM(student_count) AS hs_survey_completion_denominator,
-SUM(completed_survey_count) AS hs_survey_completion_count
-FROM `data-studio-260217.surveys.fy21_hs_survey_completion`
-GROUP BY site_short
+  SELECT
+    site_short,
+    SUM(student_count) AS hs_survey_completion_denominator,
+    SUM(completed_survey_count) AS hs_survey_completion_count
+  FROM
+    `data-studio-260217.surveys.fy21_hs_survey_completion`
+  GROUP BY
+    site_short
 ),
-
-
-prep_student_counts AS (SELECT
-  national,
-  site_short,
-  site_sort,
-  region_abrev,
-  SUM(
-    IF(
-      (Contact_Record_Type_Name = "Student: Post-Secondary") AND (college_track_status_c = '15A'),
-      student_count,
-      NULL
-    )
-  ) AS active_ps_student_count,
-  SUM(
-    IF(
-      Contact_Record_Type_Name = "Student: High School",
-      student_count,
-      NULL
-    )
-  ) AS hs_student_count,
+prep_student_counts AS (
+  SELECT
+    national,
+    site_short,
+    site_sort,
+    region_abrev,
     SUM(
-    IF(
-      grade_c = "12th Grade",
-      student_count,
-      NULL
-    )
-  ) AS hs_senior_student_count,
-      SUM(
-    IF(
-      grade_c = "9th Grade",
-      student_count,
-      NULL
-    )
-  ) AS hs_ninth_grade_student_count,
+      IF(
+        (
+          Contact_Record_Type_Name = "Student: Post-Secondary"
+        )
+        AND (college_track_status_c = '15A'),
+        student_count,
+        NULL
+      )
+    ) AS active_ps_student_count,
     SUM(
-    IF(
-      indicator_completed_ct_hs_program_c = true,
-      student_count,
-      NULL
-    )
-  ) AS completed_hs_program_count,
-FROM
-  gather_data
-GROUP BY
-  national,
-  site_short,
-  site_sort,
-  region_abrev 
-  )
-  
-  SELECT 
+      IF(
+        Contact_Record_Type_Name = "Student: High School",
+        student_count,
+        NULL
+      )
+    ) AS hs_student_count,
+    SUM(
+      IF(
+        grade_c = "12th Grade",
+        student_count,
+        NULL
+      )
+    ) AS hs_senior_student_count,
+    SUM(
+      IF(
+        grade_c = "9th Grade",
+        student_count,
+        NULL
+      )
+    ) AS hs_ninth_grade_student_count,
+    SUM(
+      IF(
+        indicator_completed_ct_hs_program_c = true,
+        student_count,
+        NULL
+      )
+    ) AS completed_hs_program_count,
+  FROM
+    gather_student_data
+  GROUP BY
+    national,
+    site_short,
+    site_sort,
+    region_abrev
+)
+SELECT
   PSC.*,
   SC.hs_survey_completion_denominator,
-  SC.hs_survey_completion_count 
-  
-  FROM prep_student_counts PSC
+  SC.hs_survey_completion_count
+FROM
+  prep_student_counts PSC
   LEFT JOIN survey_completion SC ON SC.site_short = PSC.site_short
