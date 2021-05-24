@@ -19,12 +19,11 @@ WITH gather_hs_data AS (
     END as male_student,
     -- % of entering 9th grade students who are low-income AND first-gen
     -- The denominator for this is created in join_prep
-
     CASE
       WHEN (
         grade_c = '9th Grade'
         AND indicator_low_income_c = 'Yes'
-        AND first_generation_fy_20_c = 'Yes'
+        AND indicator_first_generation_c = true
       ) THEN 1
       ELSE 0
     END AS first_gen_and_low_income,
@@ -108,7 +107,6 @@ prep_ps_metrics AS (
   GROUP BY
     site_short
 ),
-
 -- % of students growing toward average or above social-emotional strengths
 -- This KPI is done over four CTEs (could probaly be made more efficient). The majority of the logic is done in the second CTE.
 gather_covi_data AS (
@@ -125,6 +123,7 @@ gather_covi_data AS (
   WHERE
     T.record_type_id = '0121M000001cmuDQAQ'
     AND AY_Name IN ('AY 2019-20', 'AY 2020-21')
+    AND CAT.College_track_status_c = '11A'
   GROUP BY
     site_short,
     contact_name_c,
@@ -160,21 +159,23 @@ determine_covi_indicators AS (
     covi_growth IS NOT NULL
 ),
 aggregate_covi_data AS (
-SELECT
-  site_short,
-  SUM(covi_student_grew) AS SD_covi_student_grew,
-  COUNT(contact_name_c) AS SD_covi_denominator
-FROM
-  determine_covi_indicators
-GROUP BY
-  site_short
-  )
-
+  SELECT
+    site_short,
+    SUM(covi_student_grew) AS SD_covi_student_grew,
+    COUNT(contact_name_c) AS SD_covi_denominator
+  FROM
+    determine_covi_indicators
+  GROUP BY
+    site_short
+)
 SELECT
   HS_Data.*,
   PS_Data.*
-EXCEPT(site_short),
-aggregate_covi_data.* EXCEPT (site_short)
+EXCEPT
+(site_short),
+  aggregate_covi_data.*
+EXCEPT
+  (site_short)
 FROM
   prep_hs_metrics HS_Data
   LEFT JOIN prep_ps_metrics PS_Data ON PS_Data.site_short = HS_Data.site_short
