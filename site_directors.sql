@@ -38,7 +38,32 @@ WITH gather_hs_data AS (
   WHERE
     college_track_status_c = '11A'
 ),
-gather_ps_data AS (
+gather_ps_count_no_gap_year AS (
+  SELECT
+    DISTINCT Contact_Id,
+    site_short,
+    site_c,
+    credit_accumulation_pace_c,
+    current_enrollment_status_c,
+    college_track_status_c
+  FROM
+    `data-warehouse-289815.salesforce_clean.contact_at_template`
+  WHERE
+    AT_Grade_c = 'Year 1'
+    AND AT_Enrollment_Status_c != 'Approved Gap Year'
+    AND years_since_hs_grad_c <= 6
+    AND indicator_completed_ct_hs_program_c = true
+),
+prep_on_track_denom AS (
+  SELECT
+    site_short,
+    COUNT(Contact_Id) AS on_track_student_count
+  FROM
+    gather_ps_count_no_gap_year
+  GROUP BY
+    site_short
+),
+prep_on_track_data AS (
   SELECT
     Contact_Id,
     site_short,
@@ -47,13 +72,13 @@ gather_ps_data AS (
     -- The denominator for this is created in join_prep
     CASE
       WHEN (
-        Credit_Accumulation_Pace_c != "6+ Years"
+        Credit_Accumulation_Pace_c NOT IN ("6+ Years", 'Credit Data Missing')
         AND Current_Enrollment_Status_c = "Full-time"
       ) THEN 1
       ELSE 0
     END AS on_track
   FROM
-    `data-warehouse-289815.salesforce_clean.contact_template`
+    gather_ps_count_no_gap_year
   WHERE
     college_track_status_c = '15A'
 ),
@@ -76,7 +101,7 @@ join_hs_data AS (
     GHSD.*,
     CASE
       WHEN enrolled_sessions_c = 0 THEN NULL
-      WHEN (attended_workshops_c / enrolled_sessions_c) > 0.8 THEN 1
+      WHEN (attended_workshops_c / enrolled_sessions_c) >= 0.8 THEN 1
       ELSE 0
     END AS above_80_attendance
   FROM
@@ -103,7 +128,7 @@ prep_ps_metrics AS (
     site_short,
     SUM(on_track) AS SD_on_track
   FROM
-    gather_ps_data
+    prep_on_track_data
   GROUP BY
     site_short
 ),
@@ -175,8 +200,10 @@ EXCEPT
 (site_short),
   aggregate_covi_data.*
 EXCEPT
-  (site_short)
+  (site_short),
+  POTD.on_track_student_count AS SD_on_track_student_count
 FROM
   prep_hs_metrics HS_Data
   LEFT JOIN prep_ps_metrics PS_Data ON PS_Data.site_short = HS_Data.site_short
   LEFT JOIN aggregate_covi_data ON aggregate_covi_data.site_short = HS_Data.site_short
+  LEFT JOIN prep_on_track_denom POTD ON POTD.site_short = HS_Data.site_short
