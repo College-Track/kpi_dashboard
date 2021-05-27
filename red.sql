@@ -9,7 +9,13 @@ WITH gather_data AS (
                 Prev_AT_Cum_GPA >= 3.25
                 AND composite_readiness_most_recent_c = '1. Ready'
                 AND college_track_status_c = '11A'
-                AND grade_c = '12th Grade'
+                AND (
+                    grade_c = "12th Grade"
+                    OR (
+                        grade_c = 'Year 1'
+                        AND years_since_hs_grad_c = 0
+                    )
+                )
             ) THEN 1
             ELSE 0
         END AS gpa_3_25__test_ready,
@@ -46,6 +52,7 @@ gather_retention_data AS (
         AND dosage_types_c NOT LIKE '%NSO%'
         AND AY_Name = "AY 2020-21"
         AND grade_c != '8th Grade'
+        AND Outcome_c != 'Cancelled'
 ),
 aggregate_retention_data AS (
     SELECT
