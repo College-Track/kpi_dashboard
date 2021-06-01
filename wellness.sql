@@ -9,9 +9,17 @@ gather_at_data AS (
     FROM
         `data-warehouse-289815.salesforce_clean.contact_at_template`
     WHERE
-        record_type_id = '01246000000RNnSAAW' --HS student contact record type
-        AND site != 'College Track Arlen'
-        AND College_Track_Status_Name = 'Current CT HS Student'
+        College_Track_Status_Name = 'Current CT HS Student'
+        AND (
+            grade_c IN ('9th Grade', '10th Grade', '11th Grade')
+            OR (
+                grade_c = "12th Grade"
+                OR (
+                    grade_c = 'Year 1'
+                    AND indicator_years_since_hs_graduation_c = 0
+                )
+            )
+        )
 ),
 --Pull Covi assessments completed within appropriate AYs (2019-20, 2020-21)
 gather_covi_data AS (
@@ -32,7 +40,7 @@ gather_covi_data AS (
     WHERE
         COVI.record_type_id = '0121M000001cmuDQAQ' --Covitality test record type
         AND status_c = 'Completed'
-        AND AY_Name IN ('AY 2019-20', 'AY 2020-21')
+        AND AY_Name = 'AY 2020-21'
 ),
 --Setting groundwork for KPI indicator: % of students who have taken the the CoVi assessment each academic year (2020-21AY)
 --Data gathered through 2 CTEs. Denom should be Current CT HS Student
@@ -66,66 +74,6 @@ students_that_completed_covi AS (
     GROUP BY
         site_short
 ),
---Using same logic from Site Director KPIs to calculate: % of students growing toward average or above social-emotional strengths
---This KPI is done over four CTEs. The majority of the logic is done in the second CTE.
-data_for_social_emotional_growth AS (
-    SELECT
-        contact_id_covi,
-        site_short,
-        AY_Name,
-        --add Covi Domain scores to obtain total raw Covitality score. Use lowest score if student has 1+ Covi
-        MIN(
-            belief_in_self_raw_score_c + engaged_living_raw_score_c + belief_in_others_raw_score_c + emotional_competence_raw_score_c
-        ) AS covi_raw_score
-    FROM
-        gather_covi_data
-    WHERE
-        AY_Name IN ('AY 2019-20', 'AY 2020-21')
-    GROUP BY
-        site_short,
-        contact_id_covi,
-        AY_Name
-    ORDER BY
-        site_short,
-        contact_id_covi,
-        AY_Name
-),
-calc_covi_growth AS (
-    SELECT
-        site_short,
-        contact_id_covi,
-        covi_raw_score - lag(covi_raw_score) over (
-            partition by contact_id_covi
-            order by
-                AY_Name
-        ) AS covi_growth
-    FROM
-        data_for_social_emotional_growth
-),
-covi_growth_indicator AS (
-    SELECT
-        site_short,
-        contact_id_covi,
-        --Indicator for students demonstrating growth in Covi taken between 2019-20 and 2020-21
-        CASE
-            WHEN covi_growth > 0 THEN 1
-            ELSE 0
-        END AS covi_student_grew
-    FROM
-        calc_covi_growth
-    WHERE
-        covi_growth IS NOT NULL
-),
-aggregate_growth_covi_data AS (
-    SELECT
-        site_short,
-        SUM(covi_student_grew) AS wellness_covi_student_grew,
-        COUNT(DISTINCT contact_id_covi) AS wellness_covi_growth_denominator
-    FROM
-        covi_growth_indicator
-    GROUP BY
-        site_short
-),
 -- % of students served by Wellness who "strongly agree" wellness services assisted them in managing their stress, helping them engage in self-care practices and/or enhancing their mental health
 -- The denominator for this metric will be students who answered "yes" to receiving wellness services
 gather_wellness_survey_data AS (
@@ -156,26 +104,18 @@ aggregate_wellness_survey_data AS (
     GROUP BY
         site_short
 ),
---Growth KPIs, survey KPI, students completing Covitality KPI
+--Growth KPIs and students completing Covitality KPI
 prep_all_wellness_kpis AS (
     SELECT
         A.site_short,
         wellness_covi_assessment_completed_ay,
-        wellness_covi_student_grew,
-        wellness_covi_growth_denominator,
         wellness_survey_wellness_services_assisted_num,
         wellness_survey_wellness_services_assisted_denom
     FROM
-        aggregate_growth_covi_data AS A
-        LEFT JOIN students_that_completed_covi AS B ON A.site_short = B.site_short
-        LEFT JOIN aggregate_wellness_survey_data AS C ON A.site_short = C.site_short
+        students_that_completed_covi AS A
+        LEFT JOIN aggregate_wellness_survey_data AS B ON A.site_short = B.site_short
 )
 SELECT
-    site_short,
-    wellness_covi_assessment_completed_ay,
-    wellness_covi_student_grew,
-    wellness_covi_growth_denominator,
-    wellness_survey_wellness_services_assisted_num,
-    wellness_survey_wellness_services_assisted_denom
+    *
 FROM
     prep_all_wellness_kpis

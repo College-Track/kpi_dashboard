@@ -21,52 +21,34 @@ WITH gather_contact_data AS(
 ),
 --pull in students that have at least 1 workshop attendance session
 --this indicates some threshold of participation in programming, even if attendance numerator < 1
-set_mse_reporting_group AS (
+mse_reporting_group AS (
     SELECT
-        CAT.student_c,
+        student_c,
         site_short,
-        MAX(
+        SUM(
             CASE
-                --pull in students that have a session attendance record in Fall/Spring 2019-20, excluding NSO     
-                WHEN (
-                    Attendance_Denominator_c IS NOT NULL
-                    AND dosage_types_c NOT LIKE '%NSO%'
-                    AND AY_Name = "AY 2019-20"
-                    AND term_c IN ("Fall", "Spring")
-                    AND grade_c != '8th Grade'
-                    AND (
-                        CAT.global_academic_semester_c = 'a3646000000dMXhAAM' --Spring 2019-20 (Semester)
-                        AND student_audit_status_c IN ('Current CT HS Student', 'Leave of Absence')
-                    )
-                ) --pull in students that were active at end of Spring 2019-20 or Summer 2019-20; CT Status (AT)
-                OR (
-                    Attendance_Denominator_c IS NOT NULL
-                    AND dosage_types_c NOT LIKE '%NSO%'
-                    AND AY_Name = "AY 2019-20"
-                    AND term_c = 'Summer'
-                    AND grade_c != '8th Grade'
-                    AND (
-                        CAT.global_academic_semester_c = 'a3646000000dMXiAAM' --Summer 2019-20 (Semester)
-                        AND student_audit_status_c IN ('Current CT HS Student')
-                    )
-                ) THEN 1
+                WHEN student_audit_status_c = 'Current CT HS Student' THEN 1
                 ELSE 0
             END
-        ) AS mse_reporting_group
+        ) AS current_at_count,
     FROM
-        `data-warehouse-289815.salesforce_clean.contact_at_template` CAT
-        LEFT JOIN `data-warehouse-289815.salesforce_clean.class_template` CT ON CAT.contact_id = CT.student_c
+        `data-warehouse-289815.salesforce_clean.contact_at_template`
     WHERE
-        site_short <> "College Track Arlen"
+        --CT Status (AT) = Current CT HS Student during Spring 2019-20 AND Summer 2019-20
+        GAS_Name IN (
+            'Spring 2019-20 (Semester)',
+            'Summer 2019-20 (Semester)'
+        )
+        AND grade_c != '8th Grade'
     GROUP BY
-        site_short,
-        CAT.student_c
+        student_c,
+        site_short
 ),
 --Pull meaningful summer experience data from current and previous AY (hard-entry 2019,20, 2020-21)
 gather_mse_data AS (
     SELECT
         contact_id,
-        m.site_short,
+        c.site_short,
         --The following KPIs will pull in: Current CT HS Students and those that Completed the CT HS program. 
         --This will allow us to include PS student MSEs completed last Summer while still in HS
         --pull completed MSE last Summer
@@ -102,8 +84,7 @@ gather_mse_data AS (
             END
         ) AS mse_internship_prev_AY,
     FROM
-        set_mse_reporting_group AS m
-        LEFT JOIN `data-warehouse-289815.salesforce.student_life_activity_c` AS sl ON m.student_c = sl.student_c
+        `data-warehouse-289815.salesforce.student_life_activity_c` AS sl
         LEFT JOIN `data-warehouse-289815.salesforce_clean.contact_at_template` AS c ON c.at_id = sl.semester_c
     WHERE
         sl.record_type_id = '01246000000ZNi8AAG' #Summer Experience
@@ -165,9 +146,11 @@ aggregate_dream_kpi AS (
 aggregate_mse_reporting_group AS (
     SELECT
         site_short,
-        SUM(mse_reporting_group) AS sl_mse_reporting_group_prev_AY
+        COUNT(student_c) AS sl_mse_reporting_group_prev_AY
     FROM
-        set_mse_reporting_group
+        mse_reporting_group
+    WHERE
+        current_at_count = 2
     GROUP BY
         site_short
 ),
