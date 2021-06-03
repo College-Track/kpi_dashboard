@@ -125,6 +125,85 @@ prep_attendance_kpi AS (
         gather_contact_data as gd
         LEFT JOIN gather_attendance_data AS attendance ON gd.contact_id = attendance.student_c
 ),
+gather_survey_data AS (
+    SELECT
+        CT.site_short,
+        -- % of students that agree or strongly agree to a statement that they have a hobby, interest, subject that they are passionate about this year'
+        -- The denominator for this metric is housed in the join_prep query.
+        SUM(
+            CASE
+                WHEN i_have_a_hobby_or_interest_that_i_am_passionate_about_this_year = "Strongly Agree" THEN 1
+                WHEN my_site_is_run_effectively_examples_i_know_how_to_find_zoom_links_i_receive_site = 'Agree' THEN 1
+                ELSE 0
+            END
+        ) AS agree_they_have_hobby
+    FROM
+        `data-studio-260217.surveys.fy21_hs_survey` S
+        LEFT JOIN `data-warehouse-289815.salesforce_clean.contact_template` CT ON CT.Contact_Id = S.contact_id
+    GROUP BY
+        CT.site_short
+),
+-- % % of students that have improved Belief-in-Self domain within the year
+-- This KPI is done over four CTEs (could probaly be made more efficient). The majority of the logic is done in the second CTE.
+gather_covi_data AS (
+    SELECT
+        contact_name_c,
+        site_short,
+        AT_Name,
+        start_date_c,
+        MIN(belief_in_self_raw_score_c) AS belief_in_self_raw_score_c
+    FROM
+        `data-warehouse-289815.salesforce_clean.test_clean` T
+        LEFT JOIN `data-warehouse-289815.salesforce_clean.contact_at_template` CAT ON CAT.AT_Id = T.academic_semester_c
+    WHERE
+        T.record_type_id = '0121M000001cmuDQAQ'
+        AND AY_Name IN ('AY 2019-20', 'AY 2020-21')
+        AND CAT.College_track_status_c = '11A'
+    GROUP BY
+        site_short,
+        contact_name_c,
+        AT_Name,
+        start_date_c
+    ORDER BY
+        site_short,
+        contact_name_c,
+        start_date_c
+),
+calc_covi_growth AS (
+    SELECT
+        site_short,
+        contact_name_c,
+        belief_in_self_raw_score_c - lag(belief_in_self_raw_score_c) over (
+            partition by contact_name_c
+            order by
+                start_date_c
+        ) AS covi_growth
+    FROM
+        gather_covi_data
+),
+determine_covi_indicators AS (
+    SELECT
+        site_short,
+        contact_name_c,
+        CASE
+            WHEN covi_growth > 0 THEN 1
+            ELSE 0
+        END AS covi_student_grew
+    FROM
+        calc_covi_growth
+    WHERE
+        covi_growth IS NOT NULL
+),
+aggregate_covi_data AS (
+    SELECT
+        site_short,
+        SUM(covi_student_grew) AS SL_covi_belief_student_grew,
+        COUNT(contact_name_c) AS SL_covi_belief_denominator
+    FROM
+        determine_covi_indicators
+    GROUP BY
+        site_short
+),
 aggregate_attendance_kpi AS (
     SELECT
         site_short,
@@ -174,17 +253,14 @@ EXCEPT
     mse_kpi.*
 EXCEPT
     (site_short),
-    sl_mse_reporting_group_prev_AY
+    sl_mse_reporting_group_prev_AY,
+    GSD.agree_they_have_hobby AS sl_agree_they_have_hobby,
+    ACD.SL_covi_belief_student_grew,
+    ACD.SL_covi_belief_denominator
 FROM
     aggregate_dream_kpi AS d
     LEFT JOIN aggregate_attendance_kpi AS attendance_kpi ON d.site_short = attendance_kpi.site_short
     LEFT JOIN aggregate_mse_kpis AS mse_kpi ON d.site_short = mse_kpi.site_short
     LEFT JOIN aggregate_mse_reporting_group AS mse_grp ON mse_grp.site_short = mse_kpi.site_short
-GROUP BY
-    site_short,
-    sl_mse_reporting_group_prev_AY,
-    sl_mse_completed_prev_AY,
-    sl_mse_competitive_prev_AY,
-    sl_mse_internship_prev_AY,
-    sl_dreams_declared,
-    sl_above_80_attendance
+    LEFT JOIN gather_survey_data AS GSD ON GSD.site_short = d.site_short
+    LEFT JOIN aggregate_covi_data AS ACD ON ACD.site_short = d.site_short
