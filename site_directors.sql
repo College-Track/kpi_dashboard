@@ -51,7 +51,7 @@ gather_ps_count_no_gap_year AS (
   WHERE
     AT_Grade_c = 'Year 1'
     AND AT_Enrollment_Status_c != 'Approved Gap Year'
-    AND years_since_hs_grad_c <= 6
+    AND indicator_years_since_hs_graduation_c <= 6
     AND indicator_completed_ct_hs_program_c = true
 ),
 prep_on_track_denom AS (
@@ -116,7 +116,7 @@ prep_hs_metrics AS (
     SUM(first_gen_and_low_income) AS SD_ninth_grade_first_gen_low_income,
     SUM(above_80_attendance) AS SD_above_80_attendance,
     SUM(summer_experience) AS SD_summer_experience,
-    MAX(Account.College_Track_High_School_Capacity_c) AS hs_cohort_capacity,
+    MAX(Account.College_Track_High_School_Capacity_v_2_c) AS hs_cohort_capacity,
   FROM
     join_hs_data GSD
     LEFT JOIN `data-warehouse-289815.salesforce.account` Account ON Account.Id = GSD.site_c
@@ -132,7 +132,7 @@ prep_ps_metrics AS (
   GROUP BY
     site_short
 ),
--- % of students growing toward average or above social-emotional strengths
+-- % of students growing toward average or above cialcial-emotional strengths
 -- This KPI is done over four CTEs (could probaly be made more efficient). The majority of the logic is done in the second CTE.
 gather_covi_data AS (
   SELECT
