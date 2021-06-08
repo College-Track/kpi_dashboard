@@ -202,6 +202,23 @@ gather_data_twelfth_grade AS (
             group by
                 student_c
         ) AS applied_best_good,
+        --Students and families are prepared to enter strong college situations
+        --The following assumes that when you accept and enroll, are waitlisted, or deferred for FY22,
+        --you have had a conversation with a parent and student, which is part of dosage. 
+        (
+            SELECT
+                student_c
+            FROM
+                `data-warehouse-289815.salesforce_clean.college_application_clean` AS subq2
+            WHERE
+                admission_status_c IN (
+                    "Accepted and Enrolled",
+                    "Accepted and Deferred",
+                    "Wait-listed"
+                )
+            group by
+                student_c
+        ) AS accepted_enrolled_waitlisted,
     FROM
         `data-warehouse-289815.salesforce_clean.contact_template`
         LEFT JOIN gather_attendance_data ON contact_id = student_c
@@ -272,6 +289,11 @@ gather_twelfth_grade_metrics AS(
             WHEN accepted_enrolled_affordable IS NOT NULL THEN 1
             ELSE 0
         END AS cc_hs_enrolled_affordable,
+        --Students and families are prepared to enter strong college situations
+        CASE
+            WHEN accepted_enrolled_waitlisted IS NOT NULL THEN 1
+            ELSE 0
+        END AS cc_hs_strong_college_situations,
     FROM
         gather_data_twelfth_grade
 ),
@@ -305,6 +327,7 @@ prep_twelfth_grade_metrics AS (
         SUM(cc_hs_accepted_affordable) AS cc_hs_accepted_affordable,
         SUM(cc_hs_applied_best_good) AS cc_hs_applied_best_good,
         SUM(cc_hs_accepted_best_good_situational) AS cc_hs_accepted_best_good_situational,
+        SUM(cc_hs_strong_college_situations) AS cc_hs_strong_college_situations,
         SUM(fafsa_verification_prep) AS cc_hs_financial_aid_submission_verification,
         SUM(cc_hs_enrolled_best_good_situational) AS cc_hs_enrolled_best_good_situational,
         SUM(cc_hs_enrolled_affordable) AS cc_hs_enrolled_affordable
@@ -336,6 +359,7 @@ GROUP BY
     cc_hs_aspirations_num,
     cc_hs_aspirations_denom,
     cc_hs_above_80_cc_attendance,
+    cc_hs_strong_college_situations,
     cc_hs_financial_aid_submission_verification,
     cc_hs_accepted_affordable,
     cc_hs_applied_best_good,
