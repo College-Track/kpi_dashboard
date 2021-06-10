@@ -16,11 +16,24 @@ WITH gather_data AS (
         grade_c = '12th Grade'
         OR (
           grade_c = 'Year 1'
-          AND years_since_hs_grad_c = 0
+          AND indicator_years_since_hs_graduation_c = 0
         )
       ) THEN 1
       ELSE 0
-    END AS composite_ready
+    END AS composite_ready,
+    -- % of not ready and near ready students who become composite ready by the highest official exam score
+    CASE
+      WHEN Readiness_10_th_Composite_c IN('2. Near Ready', '3. Not Ready')
+      AND grade_c NOT IN ('9th Grade', '10th Grade') THEN 1
+      ELSE 0
+    END AS tenth_grade_test_not_ready,
+    CASE
+      WHEN (Readiness_Composite_Off_c = '1. Ready')
+      AND (
+        Readiness_10_th_Composite_c IN('2. Near Ready', '3. Not Ready')
+      ) THEN 1
+      ELSE 0
+    END AS offical_test_ready
   FROM
     `data-warehouse-289815.salesforce_clean.contact_at_template`
   WHERE
@@ -65,8 +78,8 @@ gather_survey_data AS (
       WHEN ct_helps_me_better_understand_that_i_am_in_control_of_my_academic_performance = 'Agree' THEN 1
       ELSE 0
     END AS i_am_in_control_of_my_academic_performance,
-    -- Growth in the % of students that agree or strongly agree to this statement: “I feel prepared to engage in academic stretch opportunities.” 
-    -- Not doing any growth calculation here, just displaying the raw percent. Can follow up with VS if that is a concern. 
+    -- Growth in the % of students that agree or strongly agree to this statement: “I feel prepared to engage in academic stretch opportunities.”
+    -- Not doing any growth calculation here, just displaying the raw percent. Can follow up with VS if that is a concern.
     CASE
       WHEN i_feel_prepared_to_engage_in_academic_stretch_opportunities = "Strongly Agree" THEN 1
       WHEN i_feel_prepared_to_engage_in_academic_stretch_opportunities = 'Agree' THEN 1
@@ -80,6 +93,8 @@ SELECT
   GD.site_short,
   SUM(above_325_gpa) AS aa_above_325_gpa,
   SUM(composite_ready) AS aa_composite_ready,
+  SUM(tenth_grade_test_not_ready) AS aa_tenth_grade_test_not_ready,
+  SUM(offical_test_ready) AS aa_offical_test_ready,
   SUM(above_80_aa_attendance) AS aa_above_80_aa_attendance,
   SUM(i_am_in_control_of_my_academic_performance) AS aa_i_am_in_control_of_my_academic_performance,
   SUM(
