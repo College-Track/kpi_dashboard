@@ -6,10 +6,21 @@ WITH gather_hs_data AS (
     -- % of seniors with GPA 3.25+
     -- The denominator for this is created in join_prep
     CASE
-      WHEN grade_c = '12th Grade'
+      WHEN (grade_c = "12th Grade"
+                    OR (
+                        grade_c = 'Year 1'
+                        AND years_since_hs_grad_c = 0
+                    ))
       AND Prev_AT_Cum_GPA >= 3.25 THEN 1
       ELSE 0
     END AS above_325_gpa,
+    -- % of seniors with GPA 3.25+ (eleventh grade proxy)
+    -- The denominator for this is created in join_prep
+    CASE
+      WHEN grade_c = '11th Grade'
+      AND Prev_AT_Cum_GPA >= 3.25 THEN 1
+      ELSE 0
+    END AS above_325_gpa_eleventh_grade,
     -- % of entering 9th grade students who are male
     -- The denominator for this is created in join_prep
     CASE
@@ -112,6 +123,7 @@ prep_hs_metrics AS (
   SELECT
     GSD.site_short,
     SUM(above_325_gpa) AS SD_senior_above_325,
+    SUM(above_325_gpa_eleventh_grade) AS SD_above_325_gpa_eleventh_grade,
     SUM(male_student) AS SD_ninth_grade_male,
     SUM(first_gen_and_low_income) AS SD_ninth_grade_first_gen_low_income,
     SUM(above_80_attendance) AS SD_above_80_attendance,

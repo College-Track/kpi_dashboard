@@ -73,6 +73,15 @@ prep_student_counts AS (
     ) AS hs_senior_student_count,
     SUM(
       IF(
+        (
+          grade_c = "11th Grade"
+        ),
+        student_count,
+        NULL
+      )
+    ) AS hs_eleventh_student_count,
+    SUM(
+      IF(
         grade_c = "9th Grade",
         student_count,
         NULL

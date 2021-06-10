@@ -19,6 +19,19 @@ WITH gather_data AS (
             ) THEN 1
             ELSE 0
         END AS gpa_3_25__test_ready,
+       -- % of seniors with GPA 3.25+ AND Composite Ready eleventh proxy
+        -- Will need to update this to be more dynamic to account for lag in GPA entry.
+        CASE
+            WHEN (
+                Prev_AT_Cum_GPA >= 3.25
+                AND composite_readiness_most_recent_c = '1. Ready'
+                AND college_track_status_c = '11A'
+                AND (
+                    grade_c = "11th Grade"
+                )
+            ) THEN 1
+            ELSE 0
+        END AS gpa_3_25__test_ready_eleventh,
     FROM
         `data-warehouse-289815.salesforce_clean.contact_at_template`
     WHERE
@@ -28,7 +41,8 @@ WITH gather_data AS (
 aggregate_metrics AS (
     SELECT
         GD.site_short,
-        SUM(GD.gpa_3_25__test_ready) AS red_gpa_3_25_test_ready
+        SUM(GD.gpa_3_25__test_ready) AS red_gpa_3_25_test_ready,
+           SUM(gpa_3_25__test_ready_eleventh) AS red_gpa_3_25__test_ready_eleventh
     FROM
         gather_data GD
     GROUP BY
@@ -67,6 +81,7 @@ aggregate_retention_data AS (
 SELECT
     AM.site_short,
     AM.red_gpa_3_25_test_ready,
+       AM.red_gpa_3_25__test_ready_eleventh,
     ARD.retention_denom,
     ARD.retention_num
 FROM
