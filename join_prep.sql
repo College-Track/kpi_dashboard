@@ -8,7 +8,7 @@ WITH gather_student_data AS (
     grade_c,
     indicator_completed_ct_hs_program_c,
     college_track_status_c,
-    years_since_hs_grad_c,
+    indicator_years_since_hs_graduation_c,
     COUNT(Contact_Id) AS student_count
   FROM
     `data-warehouse-289815.salesforce_clean.contact_template`
@@ -23,7 +23,7 @@ WITH gather_student_data AS (
     grade_c,
     indicator_completed_ct_hs_program_c,
     college_track_status_c,
-    years_since_hs_grad_c
+    indicator_years_since_hs_graduation_c
 ),
 survey_completion AS (
   SELECT
@@ -64,7 +64,7 @@ prep_student_counts AS (
           grade_c = "12th Grade"
           OR (
             grade_c = 'Year 1'
-            AND years_since_hs_grad_c = 0
+            AND indicator_years_since_hs_graduation_c = 0
           )
         ),
         student_count,
