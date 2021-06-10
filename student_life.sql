@@ -1,3 +1,11 @@
+/*
+ CREATE OR REPLACE TABLE `data-studio-260217.kpi_dashboard.student_life` 
+ OPTIONS
+ (
+ description= "Aggregating Student Life KPI metrics for the Data Studio KPI dashboard"
+ )
+ AS
+ */
 WITH gather_contact_data AS(
     SELECT
         contact_id,
@@ -51,7 +59,6 @@ gather_mse_data AS (
         c.site_short,
         --The following KPIs will pull in: Current CT HS Students and those that Completed the CT HS program. 
         --This will allow us to include PS student MSEs completed last Summer while still in HS
-        --pull completed MSE last Summer
         --pull completed MSE last Summer
         MAX(
             CASE
@@ -132,8 +139,7 @@ gather_survey_data AS (
         -- The denominator for this metric is housed in the join_prep query.
         SUM(
             CASE
-                WHEN i_have_a_hobby_or_interest_that_i_am_passionate_about_this_year = "Strongly Agree" THEN 1
-                WHEN my_site_is_run_effectively_examples_i_know_how_to_find_zoom_links_i_receive_site = 'Agree' THEN 1
+                WHEN i_have_a_hobby_or_interest_that_i_am_passionate_about_this_year IN ("Strongly Agree", 'Agree') THEN 1
                 ELSE 0
             END
         ) AS agree_they_have_hobby

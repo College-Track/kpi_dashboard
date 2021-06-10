@@ -21,6 +21,7 @@ WITH gather_data AS (
       ) THEN 1
       ELSE 0
     END AS composite_ready,
+    -- % of not ready and near ready students who become composite ready by the highest official exam score
     CASE
       WHEN Readiness_10_th_Composite_c IN('2. Near Ready', '3. Not Ready')
       AND grade_c NOT IN ('9th Grade', '10th Grade') THEN 1

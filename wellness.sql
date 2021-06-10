@@ -1,3 +1,11 @@
+/*
+ CREATE OR REPLACE TABLE `data-studio-260217.kpi_dashboard.wellness` 
+ OPTIONS
+ (
+ description= "Aggregating Wellness metrics for the Data Studio KPI dashboard"
+ )
+ AS
+ */
 WITH --Gather contact and academic term data to join with COVI data to set reporting groups
 gather_at_data AS (
     SELECT
@@ -110,20 +118,24 @@ aggregate_wellness_survey_data AS (
 --Pulling students with red/blue covi from academic term (2020-21AY)
 gather_red_blue_covi_at AS (
     SELECT
-        student_c,
+        contact_id,
         site_short,
-        CASE
-            WHEN co_vitality_scorecard_color_c IN ('Blue', 'Red') THEN 1
-            ELSE NULL
-        END AS wellness_blue_red_denom
+        co_vitality_scorecard_color_c,
+        MAX(
+            CASE
+                WHEN co_vitality_scorecard_color_c IN ('Blue', 'Red') THEN 1
+                ELSE NULL
+            END
+        ) AS wellness_blue_red_denom
     FROM
         `data-warehouse-289815.salesforce_clean.contact_at_template`
     WHERE
         grade_c != '8th Grade'
         AND college_track_status_c = '11A'
         AND AY_NAME = "AY 2020-21"
+        AND Term_c = "Fall"
     GROUP BY
-        student_c,
+        contact_Id,
         site_short,
         co_vitality_scorecard_color_c
 ),
@@ -153,7 +165,16 @@ gather_wellness_attendance_data AS (
         AND grade_c != '8th Grade'
         AND Outcome_c != 'Cancelled'
         AND college_track_status_c = '11A'
-        AND co_vitality_scorecard_color_c IN ('Blue', 'Red')
+        AND contact_id IN (
+            SELECT
+                contact_id
+            FROM
+                `data-warehouse-289815.salesforce_clean.contact_at_template`
+            where
+                co_vitality_scorecard_color_c IN ('Blue', 'Red')
+                AND AY_name = "AY 2020-21"
+                AND Term_c = "Fall"
+        )
     GROUP BY
         site_short
 ),
@@ -161,12 +182,7 @@ gather_wellness_attendance_data AS (
 --1 casenote = 1 session
 gather_case_note_data AS (
     SELECT
-        CASE
-            WHEN id IS NOT NULL THEN 1
-            ELSE 0
-        END AS wellness_case_note_2020_21,
-        #wellness casenotes from 2020-21
-        id AS case_note_id,
+        COUNT (DISTINCT CSE.id) AS case_note_count,
         #case note id
         site_short
     FROM
@@ -176,18 +192,16 @@ gather_case_note_data AS (
         Type_Counseling_c = TRUE
         AND AY_name = 'AY 2020-21'
         AND college_track_status_c = '11A'
-        AND co_vitality_scorecard_color_c IN ('Blue', 'Red')
-    GROUP BY
-        site_short,
-        id
-),
---Sum case notes logged by site, for students with red or blue covitality scorecard color
-sum_of_case_notes AS (
-    SELECT
-        SUM(wellness_case_note_2020_21) as sum_of_wellness_case_notes,
-        site_short
-    FROM
-        gather_case_note_data
+        AND contact_id IN (
+            SELECT
+                contact_id
+            FROM
+                `data-warehouse-289815.salesforce_clean.contact_at_template`
+            where
+                co_vitality_scorecard_color_c IN ('Blue', 'Red')
+                AND AY_name = "AY 2020-21"
+                AND Term_c = "Fall"
+        )
     GROUP BY
         site_short
 ),
@@ -195,12 +209,10 @@ sum_of_case_notes AS (
 combine_sessions_and_case_notes AS (
     SELECT
         ATTNDCE.site_short,
-        SUM(
-            sum_attended_wellness_sessions + sum_of_wellness_case_notes
-        ) AS sum_wellness_support_received
+        SUM(sum_attended_wellness_sessions + case_note_count) AS sum_wellness_support_received
     FROM
         gather_wellness_attendance_data AS ATTNDCE
-        LEFT JOIN sum_of_case_notes AS CSE ON ATTNDCE.site_short = CSE.site_short
+        LEFT JOIN gather_case_note_data AS CSE ON ATTNDCE.site_short = CSE.site_short
     GROUP BY
         site_short
 ),
@@ -220,21 +232,35 @@ calculate_avg_wellness_services_per_blue_red_covi AS (
         LEFT JOIN gather_red_blue_covi_at AS C ON a.site_short = c.site_short
     WHERE
         wellness_blue_red_denom IS NOT NULL
-) --Aggregate all KPIs - sessions and casenotes only for now
---aggregate_kpis_data AS(
+),
+aggregate_kpis_data AS(
+    SELECT
+        a.site_short,
+        wellness_covi_assessment_completed_ay,
+        wellness_avg_support,
+        sum_attended_wellness_sessions,
+        case_note_count,
+        sum_of_blue_red_covi_for_avg,
+        wellness_survey_wellness_services_assisted_denom,
+        wellness_survey_wellness_services_assisted_num
+    FROM
+        students_that_completed_covi AS a
+        LEFT JOIN aggregate_wellness_survey_data AS b ON b.site_short = a.site_short
+        LEFT JOIN calculate_avg_wellness_services_per_blue_red_covi AS c ON c.site_short = a.site_short
+        LEFT JOIN gather_wellness_attendance_data AS d ON a.site_short = d.site_short --for total sessions
+        LEFT JOIN gather_case_note_data AS e ON a.site_short = e.site_short --for total case notes
+        LEFT JOIN sum_of_blue_red_covi AS f ON a.site_short = f.site_short --for stotal number of red/blue covi students
+    GROUP BY
+        site_short,
+        wellness_covi_assessment_completed_ay,
+        wellness_avg_support,
+        sum_attended_wellness_sessions,
+        case_note_count,
+        sum_of_blue_red_covi_for_avg,
+        wellness_survey_wellness_services_assisted_denom,
+        wellness_survey_wellness_services_assisted_num
+)
 SELECT
-    a.site_short,
-    wellness_covi_assessment_completed_ay,
-    wellness_avg_support,
-    wellness_survey_wellness_services_assisted_denom,
-    wellness_survey_wellness_services_assisted_num
+    *
 FROM
-    students_that_completed_covi AS a
-    LEFT JOIN aggregate_wellness_survey_data AS b ON b.site_short = a.site_short
-    LEFT JOIN calculate_avg_wellness_services_per_blue_red_covi AS c ON c.site_short = a.site_short
-GROUP BY
-    site_short,
-    wellness_covi_assessment_completed_ay,
-    wellness_avg_support,
-    wellness_survey_wellness_services_assisted_denom,
-    wellness_survey_wellness_services_assisted_num
+    aggregate_kpis_data

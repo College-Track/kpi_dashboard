@@ -33,7 +33,7 @@ get_at_data AS (
     FROM
         `data-warehouse-289815.salesforce_clean.contact_at_template`
     WHERE
-        college_track_status_c = '15A'
+        college_track_status_c = '15A' -- dates are used as part of filter here to handle the switch from spring AT to summer. 
         AND(
             (
                 CURRENT_DATE() < '2021-07-01'
@@ -60,14 +60,15 @@ get_at_data AS (
  WHERE college_track_status_c = '15A'
  */
 gather_contact_data AS (
+    --% of high school seniors with EFC by end of March. Right now we are not accounting for the timebound part as we don't currently have a way to track when it was completed. 
     SELECT
         site_short,
         SUM(
             CASE
-                WHEN fa_req_fafsa_c = 'Submitted' THEN 1
+                WHEN fa_req_expected_financial_contribution_c IS NOT NULL THEN 1
                 ELSE 0
             END
-        ) AS fp_12_fafsa_complete_num
+        ) AS fp_12_efc_num
     FROM
         `data-warehouse-289815.salesforce_clean.contact_template`
     WHERE
@@ -136,13 +137,13 @@ prep_best_fit_enrollment_kpi AS (
                 WHEN accepted_best_fit IS NOT NULL THEN 1
                 ELSE 0
             END
-        ) AS fp_accepted_best_fit_numerator,
+        ) AS fp_accepted_best_fit_denom,
         SUM(
             CASE
                 WHEN accepted_enrolled_best_fit IS NOT NULL THEN 1
                 ELSE 0
             END
-        ) AS fp_enrolled_best_fit_denom,
+        ) AS fp_enrolled_best_fit_numerator,
     FROM
         gather_best_fit_data
     GROUP BY
@@ -151,12 +152,12 @@ prep_best_fit_enrollment_kpi AS (
 join_data AS (
     SELECT
         a.site_short,
-        fp_12_fafsa_complete_num AS fp_12_fasfa_num,
+        fp_12_efc_num AS fp_12_efc_num,
         gather_survey_data.ps_survey_scholarship_denom,
         gather_survey_data.ps_survey_scholarship_num,
         get_at_data.indicator_efund AS fp_efund_num,
-        fp_accepted_best_fit_numerator,
-        fp_enrolled_best_fit_denom
+        fp_accepted_best_fit_denom,
+        fp_enrolled_best_fit_numerator
     FROM
         gather_contact_data AS a
         LEFT JOIN gather_survey_data ON gather_survey_data.survey_site_short = site_short
