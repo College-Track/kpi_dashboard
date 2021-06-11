@@ -74,12 +74,32 @@ prep_student_counts AS (
     SUM(
       IF(
         (
-          grade_c = "11th Grade"
-        ),
+          grade_c = "12th Grade"
+          OR (
+            grade_c = 'Year 1'
+            AND indicator_years_since_hs_graduation_c = 0
+          )
+        )
+        AND contact_official_test_prep_withdrawal IS NULL,
+        student_count,
+        NULL
+      )
+    ) AS hs_senior_student_count_test_opt_in,
+    SUM(
+      IF(
+        (grade_c = "11th Grade"),
         student_count,
         NULL
       )
     ) AS hs_eleventh_student_count,
+    SUM(
+      IF(
+        (grade_c = "11th Grade")
+        AND contact_official_test_prep_withdrawal IS NULL,
+        student_count,
+        NULL
+      )
+    ) AS hs_eleventh_student_count_test_opt_in,
     SUM(
       IF(
         grade_c = "9th Grade",
