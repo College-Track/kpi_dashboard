@@ -18,26 +18,27 @@ WITH gather_data AS (
           grade_c = 'Year 1'
           AND indicator_years_since_hs_graduation_c = 0
         )
-      ) THEN 1
+      )
+      AND contact_official_test_prep_withdrawal IS NULL THEN 1
       ELSE 0
     END AS composite_ready,
     -- % of seniors who are composite ready (11th grade proxy)
     CASE
       WHEN Readiness_Composite_Off_c = '1. Ready'
-      AND (
-        grade_c = '11th Grade'
-
-      ) THEN 1
+      AND contact_official_test_prep_withdrawal IS NULL
+      AND (grade_c = '11th Grade') THEN 1
       ELSE 0
     END AS composite_ready_eleventh_grade,
     -- % of not ready and near ready students who become composite ready by the highest official exam score
     CASE
       WHEN Readiness_10_th_Composite_c IN('2. Near Ready', '3. Not Ready')
+      AND contact_official_test_prep_withdrawal IS NULL
       AND grade_c NOT IN ('9th Grade', '10th Grade') THEN 1
       ELSE 0
     END AS tenth_grade_test_not_ready,
     CASE
       WHEN (Readiness_Composite_Off_c = '1. Ready')
+      AND contact_official_test_prep_withdrawal IS NULL
       AND (
         Readiness_10_th_Composite_c IN('2. Near Ready', '3. Not Ready')
       ) THEN 1
@@ -102,7 +103,7 @@ SELECT
   GD.site_short,
   SUM(above_325_gpa) AS aa_above_325_gpa,
   SUM(composite_ready) AS aa_composite_ready,
-SUM(composite_ready_eleventh_grade) AS aa_composite_ready_eleventh_grade,
+  SUM(composite_ready_eleventh_grade) AS aa_composite_ready_eleventh_grade,
   SUM(tenth_grade_test_not_ready) AS aa_tenth_grade_test_not_ready,
   SUM(offical_test_ready) AS aa_offical_test_ready,
   SUM(above_80_aa_attendance) AS aa_above_80_aa_attendance,

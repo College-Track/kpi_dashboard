@@ -6,11 +6,13 @@ WITH gather_hs_data AS (
     -- % of seniors with GPA 3.25+
     -- The denominator for this is created in join_prep
     CASE
-      WHEN (grade_c = "12th Grade"
-                    OR (
-                        grade_c = 'Year 1'
-                        AND years_since_hs_grad_c = 0
-                    ))
+      WHEN (
+        grade_c = "12th Grade"
+        OR (
+          grade_c = 'Year 1'
+          AND indicator_years_since_hs_graduation_c = 0
+        )
+      )
       AND Prev_AT_Cum_GPA >= 3.25 THEN 1
       ELSE 0
     END AS above_325_gpa,
@@ -209,7 +211,7 @@ SELECT
   HS_Data.*,
   PS_Data.*
 EXCEPT
-(site_short),
+  (site_short),
   aggregate_covi_data.*
 EXCEPT
   (site_short),
