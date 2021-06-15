@@ -13,21 +13,24 @@ WITH gather_hs_data AS (
           AND indicator_years_since_hs_graduation_c = 0
         )
       )
-      AND Prev_AT_Cum_GPA >= 3.25 THEN 1
+      AND Prev_AT_Cum_GPA >= 3.25
+      AND college_track_status_c = '11A' THEN 1
       ELSE 0
     END AS above_325_gpa,
     -- % of seniors with GPA 3.25+ (eleventh grade proxy)
     -- The denominator for this is created in join_prep
     CASE
       WHEN grade_c = '11th Grade'
-      AND Prev_AT_Cum_GPA >= 3.25 THEN 1
+      AND Prev_AT_Cum_GPA >= 3.25
+      AND college_track_status_c = '11A' THEN 1
       ELSE 0
     END AS above_325_gpa_eleventh_grade,
     -- % of entering 9th grade students who are male
     -- The denominator for this is created in join_prep
     CASE
       WHEN grade_c = '9th Grade'
-      AND Gender_c = 'Male' THEN 1
+      AND Gender_c = 'Male'
+      AND college_track_status_c = '11A' THEN 1
       ELSE 0
     END as male_student,
     -- % of entering 9th grade students who are low-income AND first-gen
@@ -37,19 +40,21 @@ WITH gather_hs_data AS (
         grade_c = '9th Grade'
         AND indicator_low_income_c = 'Yes'
         AND indicator_first_generation_c = true
+        AND college_track_status_c = '11A'
       ) THEN 1
       ELSE 0
     END AS first_gen_and_low_income,
     -- % of students with meaningful summer experiences
     -- I might need to create a new denominator for this metric
     CASE
-      WHEN summer_experiences_previous_summer_c > 0 THEN 1
+      WHEN summer_experiences_previous_summer_c > 0
+      AND college_track_status_c = '11A' THEN 1
       ELSE 0
     END AS summer_experience
   FROM
     `data-warehouse-289815.salesforce_clean.contact_template`
   WHERE
-    college_track_status_c = '11A'
+    college_track_status_c IN ('11A', '18a', '12A')
 ),
 gather_ps_count_no_gap_year AS (
   SELECT
@@ -124,6 +129,7 @@ join_hs_data AS (
 prep_hs_metrics AS (
   SELECT
     GSD.site_short,
+    COUNT(GSD.contact_id) AS SD_hs_capacity_numerator,
     SUM(above_325_gpa) AS SD_senior_above_325,
     SUM(above_325_gpa_eleventh_grade) AS SD_above_325_gpa_eleventh_grade,
     SUM(male_student) AS SD_ninth_grade_male,
