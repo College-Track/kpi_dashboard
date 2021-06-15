@@ -90,8 +90,7 @@ prep_on_track_data AS (
     -- The denominator for this is created in join_prep
     CASE
       WHEN (
-        Credit_Accumulation_Pace_c NOT IN ("6+ Years", 'Credit Data Missing')
-        AND Current_Enrollment_Status_c = "Full-time"
+        Credit_Accumulation_Pace_c NOT IN ("6+ Years", 'Credit Data Missing') -- AND Current_Enrollment_Status_c = "Full-time"
         AND college_track_status_c = '15A'
       ) THEN 1
       WHEN college_track_status_c = '17A' THEN 1
