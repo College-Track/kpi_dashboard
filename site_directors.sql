@@ -87,13 +87,13 @@ prep_on_track_data AS (
       WHEN (
         Credit_Accumulation_Pace_c NOT IN ("6+ Years", 'Credit Data Missing')
         AND Current_Enrollment_Status_c = "Full-time"
+        AND college_track_status_c = '15A'
       ) THEN 1
+      WHEN college_track_status_c = '17A' THEN 1
       ELSE 0
     END AS on_track
   FROM
     gather_ps_count_no_gap_year
-  WHERE
-    college_track_status_c = '15A'
 ),
 -- % of students meeting 80% attendance
 -- The second part of the attendance kpi is done in the join_hs_data CTE
