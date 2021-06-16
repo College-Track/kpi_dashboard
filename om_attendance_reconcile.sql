@@ -2,6 +2,8 @@
 -- This will be a unique query. It will only run on the 5th of each month and pull data from the previous month or earlier. It will just count the number of WSA records that are still scheduled.
 SELECT
   site_short,
+  Ethnic_background_c,
+  Gender_c,
   COUNT(Class_Attendance_Id) AS OM_incomplete_wsa_records
 FROM
   `data-warehouse-289815.salesforce_clean.class_template` CT
@@ -22,4 +24,6 @@ WHERE
   AND current_as_c = true
   AND is_deleted = false
 GROUP BY
-  site_short
+  site_short,
+    Ethnic_background_c,
+    Gender_c

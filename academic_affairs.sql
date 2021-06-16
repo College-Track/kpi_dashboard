@@ -2,6 +2,8 @@ WITH gather_data AS (
   SELECT
     Contact_Id,
     site_short,
+      Ethnic_background_c,
+      Gender_c,
     -- % of students with a 3.25 GPA
     -- Will need to make this more dynamic to account for GPA lag
     CASE
@@ -101,6 +103,8 @@ gather_survey_data AS (
 )
 SELECT
   GD.site_short,
+    GD.Ethnic_background_c,
+    GD.Gender_c,
   SUM(above_325_gpa) AS aa_above_325_gpa,
   SUM(composite_ready) AS aa_composite_ready,
   SUM(composite_ready_eleventh_grade) AS aa_composite_ready_eleventh_grade,
@@ -116,4 +120,6 @@ FROM
   LEFT JOIN aa_attendance_kpi AA ON GD.Contact_Id = AA.student_c
   LEFT JOIN gather_survey_data GSD ON GSD.contact_id = GD.contact_id
 GROUP BY
-  site_short
+  site_short,
+         Ethnic_background_c,
+         Gender_c

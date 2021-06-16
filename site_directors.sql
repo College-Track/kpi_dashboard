@@ -3,6 +3,8 @@ WITH gather_hs_data AS (
     Contact_Id,
     site_short,
     site_c,
+    Ethnic_background_c,
+    Gender_c,
     -- % of seniors with GPA 3.25+
     -- The denominator for this is created in join_prep
     CASE
@@ -63,7 +65,9 @@ gather_ps_count_no_gap_year AS (
     site_c,
     credit_accumulation_pace_c,
     current_enrollment_status_c,
-    college_track_status_c
+    college_track_status_c,
+    Ethnic_background_c,
+    Gender_c
   FROM
     `data-warehouse-289815.salesforce_clean.contact_at_template`
   WHERE
@@ -75,17 +79,23 @@ gather_ps_count_no_gap_year AS (
 prep_on_track_denom AS (
   SELECT
     site_short,
+    Ethnic_background_c,
+    Gender_c,
     COUNT(Contact_Id) AS on_track_student_count
   FROM
     gather_ps_count_no_gap_year
   GROUP BY
-    site_short
+    site_short,
+    Ethnic_background_c,
+    Gender_c
 ),
 prep_on_track_data AS (
   SELECT
     Contact_Id,
     site_short,
     site_c,
+    Ethnic_background_c,
+    Gender_c,
     -- % of students with enough credits accumulated to graduate in 6 years
     -- The denominator for this is created in join_prep
     CASE
@@ -128,6 +138,8 @@ join_hs_data AS (
 prep_hs_metrics AS (
   SELECT
     GSD.site_short,
+    GSD.Ethnic_background_c,
+    GSD.Gender_c,
     COUNT(GSD.contact_id) AS SD_hs_capacity_numerator,
     SUM(above_325_gpa) AS SD_senior_above_325,
     SUM(above_325_gpa_eleventh_grade) AS SD_above_325_gpa_eleventh_grade,
@@ -140,16 +152,22 @@ prep_hs_metrics AS (
     join_hs_data GSD
     LEFT JOIN `data-warehouse-289815.salesforce.account` Account ON Account.Id = GSD.site_c
   GROUP BY
-    site_short
+    site_short,
+    Ethnic_background_c,
+    Gender_c
 ),
 prep_ps_metrics AS (
   SELECT
     site_short,
+    Ethnic_background_c,
+    Gender_c,
     SUM(on_track) AS SD_on_track
   FROM
     prep_on_track_data
   GROUP BY
-    site_short
+    site_short,
+    Ethnic_background_c,
+    Gender_c
 ),
 -- % of students growing toward average or above cialcial-emotional strengths
 -- This KPI is done over four CTEs (could probaly be made more efficient). The majority of the logic is done in the second CTE.
@@ -158,6 +176,8 @@ gather_covi_data AS (
     contact_name_c,
     site_short,
     AY_Name,
+    Ethnic_background_c,
+    Gender_c,
     MIN(
       belief_in_self_raw_score_c + engaged_living_raw_score_c + belief_in_others_raw_score_c + emotional_competence_raw_score_c
     ) AS covi_raw_score
@@ -171,7 +191,9 @@ gather_covi_data AS (
   GROUP BY
     site_short,
     contact_name_c,
-    AY_Name
+    AY_Name,
+    Ethnic_background_c,
+    Gender_c
   ORDER BY
     site_short,
     contact_name_c,
@@ -180,6 +202,8 @@ gather_covi_data AS (
 calc_covi_growth AS (
   SELECT
     site_short,
+    Ethnic_background_c,
+    Gender_c,
     contact_name_c,
     covi_raw_score - lag(covi_raw_score) over (
       partition by contact_name_c
@@ -192,6 +216,8 @@ calc_covi_growth AS (
 determine_covi_indicators AS (
   SELECT
     site_short,
+    Ethnic_background_c,
+    Gender_c,
     contact_name_c,
     CASE
       WHEN covi_growth > 0 THEN 1
@@ -205,24 +231,33 @@ determine_covi_indicators AS (
 aggregate_covi_data AS (
   SELECT
     site_short,
+    Ethnic_background_c,
+    Gender_c,
     SUM(covi_student_grew) AS SD_covi_student_grew,
     COUNT(contact_name_c) AS SD_covi_denominator
   FROM
     determine_covi_indicators
   GROUP BY
-    site_short
-)
-SELECT
+    site_short,
+    Ethnic_background_c,
+    Gender_c
+),
+join_metrics AS (SELECT
   HS_Data.*,
   PS_Data.*
-EXCEPT
-  (site_short),
-  aggregate_covi_data.*
-EXCEPT
-  (site_short),
-  POTD.on_track_student_count AS SD_on_track_student_count
+EXCEPT(site_short,Ethnic_background_c,
+    Gender_c),
+aggregate_covi_data.* EXCEPT (site_short,Ethnic_background_c,
+    Gender_c),
+POTD.on_track_student_count AS SD_on_track_student_count,
+-- GCM.hs_cohort_capacity
 FROM
   prep_hs_metrics HS_Data
-  LEFT JOIN prep_ps_metrics PS_Data ON PS_Data.site_short = HS_Data.site_short
-  LEFT JOIN aggregate_covi_data ON aggregate_covi_data.site_short = HS_Data.site_short
-  LEFT JOIN prep_on_track_denom POTD ON POTD.site_short = HS_Data.site_short
+  LEFT JOIN prep_ps_metrics PS_Data ON PS_Data.site_short = HS_Data.site_short AND PS_Data.Gender_c = HS_Data.Gender_c AND HS_Data.Ethnic_background_c = PS_Data.Ethnic_background_c
+  LEFT JOIN aggregate_covi_data ON aggregate_covi_data.site_short = HS_Data.site_short AND aggregate_covi_data.Gender_c = HS_Data.Gender_c AND aggregate_covi_data.Ethnic_background_c = HS_Data.Ethnic_background_c
+  LEFT JOIN prep_on_track_denom POTD ON POTD.site_short = HS_Data.site_short AND POTD.Gender_c = HS_Data.Gender_c AND POTD.Ethnic_background_c = HS_Data.Ethnic_background_c
+--   LEFT JOIN gather_capacity_metrics GCM ON GCM.site_short = HS_Data.site_short
+ )
+
+ SELECT *
+ FROM join_metrics
