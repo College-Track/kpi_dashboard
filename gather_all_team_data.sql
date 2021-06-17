@@ -2,7 +2,7 @@ WITH join_prep AS (
   SELECT
     *
   FROM
-    `data-studio-260217.kpi_dashboard_dev.join_prep`
+    `data-studio-260217.kpi_dashboard.join_prep`
 ),
 join_team_kpis AS (
   SELECT
@@ -21,7 +21,7 @@ join_team_kpis AS (
   FROM
     join_prep JP
     LEFT JOIN `data-studio-260217.kpi_dashboard.academic_affairs` AA ON AA.site_short = JP.site_short AND AA.Ethnic_background_c = JP.Ethnic_background_c AND AA.Gender_c = JP.Gender_c
-    LEFT JOIN `data-studio-260217.kpi_dashboard_dev.site_directors` SD ON SD.site_short = JP.site_short AND SD.Ethnic_background_c = JP.Ethnic_background_c AND SD.Gender_c = JP.Gender_c
+    LEFT JOIN `data-studio-260217.kpi_dashboard.site_directors` SD ON SD.site_short = JP.site_short AND SD.Ethnic_background_c = JP.Ethnic_background_c AND SD.Gender_c = JP.Gender_c
     LEFT JOIN `data-studio-260217.kpi_dashboard.cc_hs` CC_HS ON CC_HS.site_short = JP.site_short AND CC_HS.Ethnic_background_c = JP.Ethnic_background_c AND CC_HS.Gender_c = JP.Gender_c
     LEFT JOIN `data-studio-260217.kpi_dashboard.cc_ps` CC_PS ON CC_PS.site_short = JP.site_short AND CC_PS.Ethnic_background_c = JP.Ethnic_background_c AND CC_PS.Gender_c = JP.Gender_c
     LEFT JOIN `data-studio-260217.kpi_dashboard.student_life` SL ON SL.site_short = JP.site_short AND SL.Ethnic_background_c = JP.Ethnic_background_c AND SL.Gender_c = JP.Gender_c

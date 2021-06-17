@@ -146,9 +146,9 @@ join_data AS
 fp AS
 (
     SELECT
-    fp_site_short,
-    fp_gender,
-    fp_ethnic_background,
+    fp_site_short as site_short,
+    fp_gender AS Gender_c,
+    fp_ethnic_background AS Ethnic_background_c,
     SUM(fp_12_efc_num) AS fp_12_efc_num,
     SUM(ps_survey_scholarship_denom) AS ps_survey_scholarship_denom,
     SUM(ps_survey_scholarship_num) AS ps_survey_scholarship_num,

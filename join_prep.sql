@@ -11,6 +11,7 @@ WITH gather_student_data AS (
     indicator_years_since_hs_graduation_c,
     Ethnic_background_c,
     Gender_c,
+    contact_official_test_prep_withdrawal,
     COUNT(Contact_Id) AS student_count
   FROM
     `data-warehouse-289815.salesforce_clean.contact_template`
@@ -27,7 +28,8 @@ WITH gather_student_data AS (
     college_track_status_c,
     indicator_years_since_hs_graduation_c,
     Ethnic_background_c,
-    Gender_c
+    Gender_c,
+    contact_official_test_prep_withdrawal
 ),
 survey_completion AS (
   SELECT
@@ -77,11 +79,42 @@ prep_student_counts AS (
     ) AS hs_senior_student_count,
     SUM(
       IF(
+        (
+          grade_c = "12th Grade"
+          OR (
+            grade_c = 'Year 1'
+            AND indicator_years_since_hs_graduation_c = 0
+          )
+        )
+        AND contact_official_test_prep_withdrawal IS NULL,
+        student_count,
+        NULL
+      )
+    ) AS hs_senior_student_count_test_opt_in,
+    SUM(
+      IF(
         grade_c = "9th Grade",
         student_count,
         NULL
       )
     ) AS hs_ninth_grade_student_count,
+    SUM(
+      IF(
+        (
+          grade_c = "11th Grade"
+        ),
+        student_count,
+        NULL
+      )
+    ) AS hs_eleventh_student_count,
+    SUM(
+      IF(
+        (grade_c = "11th Grade")
+        AND contact_official_test_prep_withdrawal IS NULL,
+        student_count,
+        NULL
+      )
+    ) AS hs_eleventh_student_count_test_opt_in,
     SUM(
       IF(
         indicator_completed_ct_hs_program_c = true,
