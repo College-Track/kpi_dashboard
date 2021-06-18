@@ -96,7 +96,13 @@ gather_survey_data AS (
       WHEN i_feel_prepared_to_engage_in_academic_stretch_opportunities = "Strongly Agree" THEN 1
       WHEN i_feel_prepared_to_engage_in_academic_stretch_opportunities = 'Agree' THEN 1
       ELSE 0
-    END AS i_feel_prepared_to_engage_in_academic_stretch_opportunities
+    END AS i_feel_prepared_to_engage_in_academic_stretch_opportunities,
+    -- % of students that self-perceive growth in executive functioning skill
+      CASE
+      WHEN (i_have_new_or_improved_critical_thinking_skills IN ("Strongly Agree","Agree")  AND
+            i_have_new_or_improved_study_habits_skills IN ("Strongly Agree","Agree") )THEN 1
+      ELSE 0
+    END AS aa_self_perceived_growth_in_executive_functioning_skill
   FROM
     `data-studio-260217.surveys.fy21_hs_survey` S
     LEFT JOIN `data-warehouse-289815.salesforce_clean.contact_template` CT ON CT.Contact_Id = S.contact_id
@@ -114,7 +120,8 @@ SELECT
   SUM(i_am_in_control_of_my_academic_performance) AS aa_i_am_in_control_of_my_academic_performance,
   SUM(
     i_feel_prepared_to_engage_in_academic_stretch_opportunities
-  ) AS aa_i_feel_prepared_to_engage_in_academic_stretch_opportunities
+  ) AS aa_i_feel_prepared_to_engage_in_academic_stretch_opportunities,
+SUM(aa_self_perceived_growth_in_executive_functioning_skill) AS aa_self_perceived_growth_in_executive_functioning_skill
 FROM
   gather_data GD
   LEFT JOIN aa_attendance_kpi AA ON GD.Contact_Id = AA.student_c
