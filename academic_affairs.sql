@@ -35,7 +35,7 @@ WITH gather_data AS (
     CASE
       WHEN Readiness_10_th_Composite_c IN('2. Near Ready', '3. Not Ready')
       AND contact_official_test_prep_withdrawal IS NULL
-      AND grade_c NOT IN ('9th Grade', '10th Grade') THEN 1
+      AND grade_c NOT IN ('9th Grade', '10th Grade', '11th Grade') THEN 1
       ELSE 0
     END AS tenth_grade_test_not_ready,
     CASE
