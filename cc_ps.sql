@@ -152,37 +152,55 @@ get_at_data AS
 
 --% of students who persist into the following year (all college students)
 --first pulling in all ATs for time period I want (last fall to next fall)
+
+
+set_reporting_group AS
+(
+    SELECT
+    contact_id,
+    CASE
+--students who were active post-secondary & enrolled in any college during fall term
+        WHEN
+        (enrolled_in_any_college_c = true
+        AND student_audit_status_c = 'Active: Post-Secondary') THEN 1
+        ELSE 0
+    END AS include_in_reporting_group
+    FROM `data-warehouse-289815.salesforce_clean.contact_at_template`
+    WHERE AY_Name = 'AY 2019-20'
+    AND term_c = 'Fall'
+),
+
 get_persist_at_data AS
 (
   SELECT
-    contact_id AS persist_contact_id,
-    Gender_c AS persist_contact_gender,
-    Ethnic_background_c AS persist_contact_ethnic_background,
---indicator to flag which students were enrolled in any college last fall. used to created denominator later
-    MAX(CASE
-        WHEN
-        (enrolled_in_any_college_c = true
-        AND college_track_status_c = '15A'
-        AND AY_Name = 'AY 2020-21'
-        AND term_c = 'Fall') THEN 1
-        ELSE 0
-    END) AS include_in_reporting_group,
---counting the # of ATs for each student in this window
+    CAT.contact_id AS persist_contact_id,
+    CAT.site_short AS persist_site_short,
+    CAT.Gender_c AS persist_contact_gender,
+    CAT.Ethnic_background_c AS persist_contact_ethnic_background,
+--count number of PATs for each student
     COUNT(AT_Id) AS at_count,
 --for those same records, counting # of ATs for each student in which they met term to term persistence definition
-    SUM(indicator_persisted_at_c) AS persist_count
+    SUM(CASE
+        WHEN
+        student_audit_status_c = 'CT Alumni'
+        OR indicator_persisted_at_c = 1 THEN 1
+        ELSE 0
+    END) AS persist_count,
+    MAX(set_reporting_group.include_in_reporting_group) AS include_in_reporting_group,
 
-    FROM `data-warehouse-289815.salesforce_clean.contact_at_template`
---Start date for PAT must be prior today to be included. To exclude future PATs upon creation, until they become current AT. want to ignore summer too.
-    WHERE start_date_c < CURRENT_DATE()
-        AND((AY_Name = 'AY 2020-21'
-        AND term_c <> 'Summer')
+    FROM `data-warehouse-289815.salesforce_clean.contact_at_template` CAT
+    LEFT JOIN set_reporting_group ON set_reporting_group.contact_id = CAT.Contact_Id
+--evaluating the remaining terms in 2019-20 besides summer as well as the following fall
+    WHERE
+        (AY_Name = 'AY 2019-20'
+        AND term_c IN ('Winter','Spring'))
         OR
-        (AY_Name = 'AY 2021-22'
-        AND term_c = 'Fall'))
-    GROUP BY contact_id,
-    Gender_c,
-    Ethnic_background_c
+        (AY_Name = 'AY 2020-21'
+        AND term_c = 'Fall')
+    GROUP BY CAT.contact_id,
+    CAT.Gender_c,
+    CAT.Ethnic_background_c,
+    CAT.site_short
 ),
 --actually comparing the # terms vs. # of terms meeting persistence defintion, per student
 persist_calc AS
@@ -266,6 +284,7 @@ join_data AS
     LEFT JOIN persist_calc ON persist_calc.persist_contact_id = contact_id AND persist_contact_gender = Gender_c AND persist_contact_ethnic_background = Ethnic_background_c
     LEFT JOIN get_fy20_alumni_survey_data ON get_fy20_alumni_survey_data.alum_contact_id = contact_id AND alum_gender = Gender_c AND alum_ethnic_background = Ethnic_background_c
 ),
+
 cc_ps AS
 (
     SELECT
