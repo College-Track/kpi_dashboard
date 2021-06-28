@@ -120,6 +120,7 @@ gather_ay_attendance AS (
     `data-warehouse-289815.salesforce_clean.contact_at_template`
   WHERE
     AY_Name = "AY 2020-21"
+  AND college_track_status_c = '11A'
   GROUP BY
     Contact_Id
 ),
