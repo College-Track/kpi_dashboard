@@ -7,7 +7,7 @@ WITH gather_data AS (
     -- % of students with a 3.25 GPA
     -- Will need to make this more dynamic to account for GPA lag
     CASE
-      WHEN Prev_AT_Cum_GPA >= 3.25 THEN 1
+      WHEN most_recent_valid_cumulative_gpa >= 3.25 THEN 1
       ELSE 0
     END AS above_325_gpa,
     -- % of seniors who are composite ready

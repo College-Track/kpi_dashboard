@@ -34,17 +34,6 @@ WITH get_contact_data AS
     END AS cc_ps_projected_grad_denom,
 --% of 2yr students transferring to a 4yr within 3 years
 --cohort based, trending is students in year 3. final calc is done in fall of year 4.  Will need to be reworked for final
---numerator for trending shows which of the 2-year starters, currently in year 2 have already enrolled in a 4-year.
-    CASE
-        WHEN
-        (indicator_completed_ct_hs_program_c = true
-        AND college_track_status_c = '15A'
-        AND grade_c = 'Year 3'
-        AND school_type = '4-Year'
-        AND current_enrollment_status_c IN ("Full-time","Part-time")
-        AND college_first_enrolled_school_type_c IN ("Predominantly associate's-degree granting","Predominantly certificate-degree granting")) THEN 1
-        ELSE 0
-        END AS x_2_yr_transfer_num,
 --denom for trending, currently in year 2 started at 2-year school or lower. Will need to be reworked for final
     CASE
         WHEN
@@ -96,7 +85,7 @@ WITH get_contact_data AS
         WHEN
         (indicator_completed_ct_hs_program_c = true
         AND college_track_status_c = '15A'
-        AND Prev_AT_Cum_GPA >= 2.5) THEN 1
+        AND most_recent_valid_cumulative_gpa >= 2.5) THEN 1
         ELSE 0
     END AS cc_ps_gpa_2_5_num,
 
@@ -139,6 +128,17 @@ get_at_data AS
         OR academic_networking_over_50_credits_c = 'AN2_G') THEN 1
         ELSE 0
     END AS indicator_tech_interpersonal_skills,
+     --numerator for trending shows which of the 2-year starters, currently in year 2 have already enrolled in a 4-year.
+    CASE
+        WHEN
+        (indicator_completed_ct_hs_program_c = true
+        AND college_track_status_c = '15A'
+        AND grade_c = 'Year 3'
+        AND AT_school_type = '4-Year'
+        AND AT_Enrollment_Status_c IN ("Full-time","Part-time")
+        AND college_first_enrolled_school_type_c IN ("Predominantly associate's-degree granting","Predominantly certificate-degree granting")) THEN 1
+        ELSE 0
+        END AS x_2_yr_transfer_num,
 
     FROM `data-warehouse-289815.salesforce_clean.contact_at_template`
     WHERE college_track_status_c = '15A'
@@ -271,6 +271,7 @@ join_data AS
     get_at_data.indicator_loans_less_30k_loans,
     get_at_data.indicator_well_balanced,
     get_at_data.indicator_tech_interpersonal_skills,
+    get_at_data.x_2_yr_transfer_num,
     persist_calc.indicator_persisted,
     persist_calc.cc_persist_denom,
     get_fy20_alumni_survey_data.fy20_alumni_survey_meaningful_num,

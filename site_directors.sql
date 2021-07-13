@@ -15,7 +15,7 @@ WITH gather_hs_data AS (
           AND indicator_years_since_hs_graduation_c = 0
         )
       )
-      AND Prev_AT_Cum_GPA >= 3.25
+      AND most_recent_valid_cumulative_gpa >= 3.25
       AND college_track_status_c = '11A' THEN 1
       ELSE 0
     END AS above_325_gpa,
@@ -23,7 +23,7 @@ WITH gather_hs_data AS (
     -- The denominator for this is created in join_prep
     CASE
       WHEN grade_c = '11th Grade'
-      AND Prev_AT_Cum_GPA >= 3.25
+      AND most_recent_valid_cumulative_gpa >= 3.25
       AND college_track_status_c = '11A' THEN 1
       ELSE 0
     END AS above_325_gpa_eleventh_grade,
